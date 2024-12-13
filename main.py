@@ -4,7 +4,10 @@ from PIL import Image, ImageTk
 import util
 import os
 import subprocess
-
+import numpy as np
+from datetime import datetime
+from io import BytesIO
+import face_recognition
 
 
 class App:
@@ -57,19 +60,38 @@ class App:
 
     
     def login(self):
-        self.sample_dir = './sample_dir'
-        if not os.path.exists(self.sample_dir):
-            os.mkdir(self.sample_dir)
-        unknown_img_path = './sample_dir/sample_tmp.jpg'
+
+        unknown_img_path = 'scanned_img_tmp/.tmp.jpg'
         cv2.imwrite(unknown_img_path, self.most_recent_capture_arr)
-        output = str(subprocess.check_output(['face_recognition',self.db_dir, unknown_img_path]))
-        name = output.split(',')[1][:-5]
-        if name in ['unknown_person','no_persons_found']:
-            util.msg_box('Oops!','You either not a human being, or unregistered human being, pls register if u are human')
-        else:
-            util.msg_box('welcome back!','Hi, {}'.format(name))
-        print(name + " from "+ output)
-        os.remove(unknown_img_path)
+        output = subprocess.check_output(['face_recognition', self.db_dir, unknown_img_path])
+        print(output)
+        # now = datetime.now()
+        # self.sample_dir = './sample_dir'
+        # if not os.path.exists(self.sample_dir):
+        #     os.makedirs(self.sample_dir, exist_ok=True)
+
+        # # Use an in-memory buffer to store the image
+        img_buffer = BytesIO()
+        # cv2.imencode('.jpg', self.most_recent_capture_arr, img_buffer)
+        # img_buffer.seek(0)
+
+        # Use face_recognition library to perform face recognition
+        # face_locations = face_recognition.face_locations(img_buffer)
+        # face_encodings = face_recognition.face_encodings(img_buffer, face_locations)
+        # name = 'unknown_person'
+        # for face_encoding in face_encodings:
+        #     matches = face_recognition.compare_faces(self.known_face_encodings, face_encoding)
+        #     if any(matches):
+        #         name = self.known_face_names[matches.index(True)]
+        #         break
+
+        # if name in ['unknown_person', 'no_persons_found']:
+        #     util.msg_box('Oops!', 'You either not a human being, or unregistered human being, pls register if u are human')
+        # else:
+        #     util.msg_box(('absence - '+now.strftime("%d/%m/%Y")),
+        #                 ('{} arrived at '.format(name)+now.strftime("%H:%M:%S")))
+
+        # print(name, "=", now.strftime("%d/%m/%Y %H:%M:%S"))
 
     def register_new_user(self):
         self.register_new_user_window = tk.Toplevel(self.main_window)
