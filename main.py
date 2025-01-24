@@ -61,19 +61,21 @@ class App:
     
     def login(self):
 
-        unknown_img_path = 'scanned_img_tmp/.tmp.jpg'
+        unknown_img_path = './scanned_img_tmp/scanned.tmp.jpg'
         cv2.imwrite(unknown_img_path, self.most_recent_capture_arr)
         try:
-            output = subprocess.check_output(['face_recognition', self.db_dir, unknown_img_path], encoding='utf-8')
-            result_line = output.strip().split('\n')[0]
-            image_path, name = result_line.split(',',1)
+            output = subprocess.check_output(['face_recognition --tolerance=0.3', self.db_dir, unknown_img_path])
+            name = output.split(',')[1][:-3]
         
 
             if name in ['unkown_person', 'no_persons_found']:
                 util.msg_box('PERINGATAN!','User tidak dikenal!')
             else:
-                print(name)
+                print(output)
                 util.msg_box('Registrasi Berhasil', 'Selamat Datang, {}'.format(name))
+                with open(self.log_path, 'a') as f:
+                    f.write('{} - {} \n'.format(name, datetime.now()))
+                    f.close()
         
         except subprocess.CalledProcessError as e:
             util.msg_box('Error!', f'terjadi error: {e}')
