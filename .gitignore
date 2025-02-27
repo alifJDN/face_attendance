@@ -3,9 +3,10 @@ __pycache__/
 facerecog_env/
 *.py[cod]
 *$py.class
-
+logs/
 # Distribution / packaging
 build/
 dist/
 *.egg-info/
 *.egg
+

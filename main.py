@@ -8,6 +8,7 @@ import numpy as np
 from datetime import datetime
 from io import BytesIO
 import face_recognition
+import time
 
 
 class App:
@@ -60,25 +61,35 @@ class App:
 
     
     def login(self):
-
+        
+        start_time = time.time()
         unknown_img_path = './scanned_img_tmp/scanned.tmp.jpg'
         cv2.imwrite(unknown_img_path, self.most_recent_capture_arr)
         try:
-            output = subprocess.check_output(['face_recognition --tolerance=0.3', self.db_dir, unknown_img_path])
-            name = output.split(',')[1][:-3]
+            print('starting process')
+            processing = subprocess.check_output(['face_recognition', '--tolerance', '0.2', self.db_dir, unknown_img_path])
+            
+            output = processing.decode('utf-8').strip()
+            
+            name = output.split(',')[1].split()[0].strip()
         
 
             if name in ['unkown_person', 'no_persons_found']:
                 util.msg_box('PERINGATAN!','User tidak dikenal!')
             else:
-                print(output)
+                print(name)
                 util.msg_box('Registrasi Berhasil', 'Selamat Datang, {}'.format(name))
                 with open(self.log_path, 'a') as f:
                     f.write('{} - {} \n'.format(name, datetime.now()))
                     f.close()
-        
+            end_time = time.time()
+            elapsed_time = end_time - start_time
+            print(f"elapsed time: {elapsed_time:.3f} seconds")
         except subprocess.CalledProcessError as e:
             util.msg_box('Error!', f'terjadi error: {e}')
+            end_time = time.time()
+            elapsed_time = end_time - start_time
+            print(f"elapsed time: {elapsed_time:.3f} seconds")
 
         os.remove(unknown_img_path)
         
