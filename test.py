@@ -5,7 +5,9 @@ import os
 from tkinter import *
 from PIL import Image, ImageTk
 import SQL_Config
+from datetime import datetime
 
+cv2.setNumThreads(6)
 # Directory containing known face images
 known_faces_dir = "db"  # Create this folder and add images of known people
 
@@ -27,24 +29,29 @@ def load_known_faces():
 # Main application class
 class FaceRecognitionApp:
     def __init__(self, window):
+
         self.window = window
-        self.window.title("Face Recognition App")
+        self.window.title("Face Attendance - Prototype (Alpha)")
         self.window.geometry("640x540")  # Window size (adjust as needed)
 
         # Initialize webcam
         self.video_capture = cv2.VideoCapture(0)
         self.running = True
+        self.face_names = []  # Initialize face_names to store detected names
 
         # Canvas for video feed
         self.canvas = Canvas(window, width=640, height=480)
         self.canvas.pack()
 
         # Button below the canvas
-        self.btn_toggle = Button(window, text="Stop", command=self.recognize_face)
+        self.btn_toggle = Button(window, text="Recognize", command=self.recognize_face)
         self.btn_toggle.pack(pady=10)
+        self.status_label = Label(self.window, text="Ready", font=("Arial", 12))
+        self.status_label.pack(pady=5)
 
         # Load known faces
         load_known_faces()
+        
 
         # Start the video update loop
         self.update_video()
@@ -67,7 +74,7 @@ class FaceRecognitionApp:
         face_encodings = face_recognition.face_encodings(rgb_small_frame, face_locations)
 
         # Recognize faces
-        face_names = []
+        self.face_names = []  # Reset face_names for current frame
         for face_encoding in face_encodings:
             matches = face_recognition.compare_faces(known_face_encodings, face_encoding, tolerance=0.3)
             name = "Unknown"
@@ -75,10 +82,10 @@ class FaceRecognitionApp:
                 first_match_index = matches.index(True)
                 name = known_face_names[first_match_index]
                 print('Detected:', name)
-            face_names.append(name)
+            self.face_names.append(name)
 
         # Draw boxes and names
-        for (top, right, bottom, left), name in zip(face_locations, face_names):
+        for (top, right, bottom, left), name in zip(face_locations, self.face_names):
             top *= 4
             right *= 4
             bottom *= 4
@@ -99,6 +106,22 @@ class FaceRecognitionApp:
 
         # Schedule the next update
         self.window.after(10, self.update_video)
+
+    def recognize_face(self):
+        print("Recognize button clicked")
+        timestamp = datetime.now().strftime("%d-%m-%y %H:%M:%S")
+        name = self.face_names[0] if self.face_names else "Unknown"
+        print(f"{name} - {timestamp}")
+        self.status_label.config(text=f"Logged: {name} - {timestamp}")
+        try:
+            if self.db_connection and self.db_connection.is_connected():
+                Thread(target=SQL_Config.insert_data, args=(self.db_connection, name)).start()
+                print("Database insert thread started")
+            else:
+                print("No database connection, skipping insert")
+        except Exception as e:
+            print(f"Error initiating database insert: {e}")
+        print("Recognize face completed")
 
     def toggle_video(self):
         # Toggle video on/off
