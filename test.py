@@ -4,10 +4,8 @@ import numpy as np
 import os
 from tkinter import *
 from PIL import Image, ImageTk
-import SQL_Config
 from datetime import datetime
 
-cv2.setNumThreads(6)
 # Directory containing known face images
 known_faces_dir = "db"  # Create this folder and add images of known people
 
@@ -20,22 +18,37 @@ def load_known_faces():
     for filename in os.listdir(known_faces_dir):
         if filename.endswith((".jpg", ".png")):
             image_path = os.path.join(known_faces_dir, filename)
-            image = face_recognition.load_image_file(image_path)
-            encoding = face_recognition.face_encodings(image)[0]
-            name = os.path.splitext(filename)[0]
-            known_face_encodings.append(encoding)
-            known_face_names.append(name)
+            try:
+                # Load image with Pillow and convert to 8-bit RGB
+                pil_image = Image.open(image_path).convert("RGB")
+                image = np.array(pil_image, dtype=np.uint8)  # Ensure uint8 dtype
+                encodings = face_recognition.face_encodings(image)
+                if not encodings:
+                    print(f"No faces detected in {filename}, skipping")
+                    continue
+                encoding = encodings[0]
+                name = os.path.splitext(filename)[0]
+                known_face_encodings.append(encoding)
+                known_face_names.append(name)
+                print(f"Successfully loaded {filename}")
+            except Exception as e:
+                print(f"Error processing {filename}: {e}")
+                continue
 
 # Main application class
 class FaceRecognitionApp:
     def __init__(self, window):
-
         self.window = window
         self.window.title("Face Attendance - Prototype (Alpha)")
         self.window.geometry("640x540")  # Window size (adjust as needed)
 
         # Initialize webcam
         self.video_capture = cv2.VideoCapture(0)
+        if not self.video_capture.isOpened():
+            print("Error: Could not open webcam")
+            self.status_label.config(text="Error: Could not open webcam")
+            self.window.destroy()
+            return
         self.running = True
         self.face_names = []  # Initialize face_names to store detected names
 
@@ -51,7 +64,9 @@ class FaceRecognitionApp:
 
         # Load known faces
         load_known_faces()
-        
+        if not known_face_encodings:
+            print("Warning: No valid face encodings loaded. Check your db folder.")
+            self.status_label.config(text="Error: No valid faces in db folder")
 
         # Start the video update loop
         self.update_video()
@@ -63,6 +78,8 @@ class FaceRecognitionApp:
         # Capture frame-by-frame
         ret, frame = self.video_capture.read()
         if not ret:
+            print("Error: Failed to capture frame")
+            self.status_label.config(text="Error: Failed to capture frame")
             return
 
         # Resize frame for faster processing
@@ -81,7 +98,8 @@ class FaceRecognitionApp:
             if True in matches:
                 first_match_index = matches.index(True)
                 name = known_face_names[first_match_index]
-                print('Detected:', name)
+                timestamp = datetime.now().strftime("%d-%m-%y %H:%M:%S")
+                print(f"Detected {name} on {timestamp}")
             self.face_names.append(name)
 
         # Draw boxes and names
@@ -113,14 +131,7 @@ class FaceRecognitionApp:
         name = self.face_names[0] if self.face_names else "Unknown"
         print(f"{name} - {timestamp}")
         self.status_label.config(text=f"Logged: {name} - {timestamp}")
-        try:
-            if self.db_connection and self.db_connection.is_connected():
-                Thread(target=SQL_Config.insert_data, args=(self.db_connection, name)).start()
-                print("Database insert thread started")
-            else:
-                print("No database connection, skipping insert")
-        except Exception as e:
-            print(f"Error initiating database insert: {e}")
+        # Temporarily disable SQL_Config
         print("Recognize face completed")
 
     def toggle_video(self):
